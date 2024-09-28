@@ -1,4 +1,4 @@
-import React, {useState} from 'react';
+import React, {useState, useEffect} from 'react';
 import {StyleSheet, View, Text, Button, TextInput, TouchableOpacity, Alert} from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {useFocusEffect} from '@react-navigation/native';
@@ -28,22 +28,26 @@ export default function Writing({navigation}){
                         ]
                     );
                 }
+        
             });
             return unsubscribe; //컴포넌트 언마운트 시 리스너 해제
         }, [navigation, title, content, isSaving]) //title과 content가 변경될 때마다 리스너를 새로 등록
     ); //navigation은 현재 마운트된 컴포넌트의 정보를 참조하여 최신화된 navigation객체를 업데이트함
     
-    // useEffect(
-
-    // )
+    useEffect(()=>{
+        if(title.length > 0 && content.length > 0){
+            setSaveBtn(true);
+        }else{
+            setSaveBtn(false);
+        }
+    }, [title, content, saveBtn])
+    
     
     const goBack = () =>{
         navigation.goBack(); // 현재 스택을 제거하고, 이전 스택으로 돌아감.
     }
 
     const handleTextChange = (text, type) => { //타입에 따라서 분기
-        
-        
 
         if(type === 'title'){
             setTitle(text);
@@ -51,11 +55,6 @@ export default function Writing({navigation}){
             setContent(text);
         }
 
-        // if(title.length > 0 && content.length > 0){
-        //     setSaveBtn(true);
-        // }else{
-        //     setSaveBtn(false);
-        // }
     };
 
     const save = async () => {

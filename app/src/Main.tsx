@@ -1,12 +1,12 @@
 import React, {useEffect, useState} from 'react';
-import {StyleSheet, ScrollView, FlatList, TouchableOpacity} from 'react-native';
+import {StyleSheet, ScrollView, FlatList, TouchableOpacity, Pressable, Animated} from 'react-native';
 import {View, Text, Button} from 'react-native';
-// import {State} from 'react-native-getsture-handler';
+import {Swipeable, GestureHandlerRootView} from 'react-native-gesture-handler';
 // import {useNavigationContainerRef} from '@react-navigation/native';
 import {useNavigation, useFocusEffect} from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-import Writing from './Writing';
+
 
 
 export default function HomeScreen({navigation}) {
@@ -23,9 +23,8 @@ export default function HomeScreen({navigation}) {
             // 포커스를 잃을 때 실행할 코드 (옵션)
             // clearThat();  
         };
-    }, [])
+    }, []) //여기에 list를 넣으면 안되는 이유가 뭐였지? 의존성 배열의 값이 변경되면 useFocusEffect가 다시 실행됨
 );
-
 
     const [list, setList] = useState<Memo[]>([]);
     let sortedMemos = [];
@@ -60,15 +59,48 @@ export default function HomeScreen({navigation}) {
     console.log('삭제완료');
   }
 
-  const renderItem = ({item}) => (
-    <TouchableOpacity
-      onPress = {() => navigation.navigate('Detailed', {item: item})}>
+  const deleteItem = async (id) => {
+    const newList = list.filter(item => item.id !== id);
+    console.log(newList);
+    setList(newList);
+    await AsyncStorage.removeItem(id);
+  }
+
+  const renderRightActions = (dragX, id) => {
+    const trans = dragX.interpolate({
+      inputRange : [0, 50, 100, 101],
+      outputRange : [-20, 0, 0, 1],
+    });
+    return (
+      <Pressable onPress={()=>{deleteItem(id)}}>
+        <Animated.Text
+          style={[
+            styles.delete,
+            {
+              transform: [{translateX: trans}],
+            },
+          ]}>
+            Delete
+          </Animated.Text>
+      </Pressable>
+    )
+  }
+
+  const renderItem = ({item, index}) => (
+    <GestureHandlerRootView>
+      <Swipeable renderRightActions={dragX => renderRightActions(dragX, item.id)}>
         <View style={{padding: 10, borderBottomWidth: 1, borderColor : '#ccc'}}>
-          <Text style={{fontSize: 18}}>{item.title}</Text>
-          <Text style={{fontSize: 14, paddingLeft:5}}>{item.content}</Text>
+          <TouchableOpacity
+            onPress = {() => navigation.navigate('Detailed', {item: item})}>        
+                <Text style={{fontSize: 18}}>{item.title}</Text>
+                <Text style={{fontSize: 14, paddingLeft:5}}>{item.content}</Text>
+          </TouchableOpacity>
         </View>
-    </TouchableOpacity>
+      </Swipeable>
+    </GestureHandlerRootView>
   );
+
+
 
 
   return (
@@ -86,21 +118,11 @@ export default function HomeScreen({navigation}) {
 
 
       <View style={styles.main}>
-        <ScrollView>
           {/*FlatList 들어갈곳*/}
           <FlatList
             data = {list}
             keyExtractor = {(item) => item.id}
             renderItem={renderItem}/>
-          {/* {
-            list.map((memo, index) => (
-              <View key={memo.id} style={styles.item}>
-                <Text style={styles.title}>{memo.title}</Text>
-                <Text style={styles.content}>{memo.content}</Text>
-              </View>
-            ))
-            } */}
-        </ScrollView>
       </View>
 
       <View style={styles.bottom}>
@@ -162,5 +184,12 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#555',
     paddingLeft: 25,
+  },
+  delete: {
+    fontSize: 14,
+    color : 'red',
+    flexDirection: 'row',
+    alignItems: 'center',
   }
+
 });
