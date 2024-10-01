@@ -2,7 +2,6 @@ import React, {useEffect, useState} from 'react';
 import {StyleSheet, ScrollView, FlatList, TouchableOpacity, Pressable, Animated} from 'react-native';
 import {View, Text, Button} from 'react-native';
 import {Swipeable, GestureHandlerRootView} from 'react-native-gesture-handler';
-// import {useNavigationContainerRef} from '@react-navigation/native';
 import {useNavigation, useFocusEffect} from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -10,9 +9,6 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 
 export default function HomeScreen({navigation}) {
-
-//   const navigation = useNavigation();
-  // const navigationRef = useNavigationContainerRef();
 
   useFocusEffect(
     React.useCallback(() => {
@@ -27,8 +23,9 @@ export default function HomeScreen({navigation}) {
 );
 
     const [list, setList] = useState<Memo[]>([]);
-    let sortedMemos = [];
+    const [order, setOrder] = useState(false); //true asc , false desc
 
+    let sortedMemos = [];
 
     const loadMemo = async () => {
         const keys = await AsyncStorage.getAllKeys();
@@ -41,10 +38,21 @@ export default function HomeScreen({navigation}) {
           return null;
         }).filter(memo => memo !== null) as Memo[];
 
+        
+
         sortedMemos = memos.sort((prev, next) => {
+
           const dataA = new Date(prev.id);
           const dataB = new Date(next.id);
-          return dataB.getTime() - dataA.getTime();
+
+          if(prev.important&&!next.important) return -1;
+          if(!prev.important&&next.important) return 1;
+
+          if(order ===false){
+            return dataB.getTime() - dataA.getTime();
+          }else{
+            return dataA.getTime() - dataB.getTime();
+          }
 
         });
         setList(sortedMemos);
@@ -73,35 +81,70 @@ export default function HomeScreen({navigation}) {
     });
     return (
       <Pressable onPress={()=>{deleteItem(id)}}>
-        <Animated.Text
+        <Animated.View
           style={[
-            styles.delete,
+            styles.deleteContainer,
             {
               transform: [{translateX: trans}],
             },
           ]}>
-            Delete
-          </Animated.Text>
+            <Text style={styles.deleteText}>Delete</Text>
+          </Animated.View>
       </Pressable>
     )
   }
 
+  //잘모르는거
+  const markAsImportant = async (id) => {
+    const updatedList = list.map(item => {
+      
+      if(item.id === id){
+        return { ...item, important: !item.important};
+      }
+      return item;
+    })
+    setList(updatedList);
+    
+    const updatedMemo = updatedList.find(item => item.id === id);
+    await AsyncStorage.setItem(id, JSON.stringify(updatedMemo));
+  };
+
+  const renderLeftActions = (dragX, id) => {
+    const trans = dragX.interpolate({
+      inputRange : [0, 50, 100, 101],
+      outputRange : [0, 0,0 , 1],
+    });
+    return(
+      <Pressable onPress = {() => {markAsImportant(id)}}>
+        <Animated.View
+          style={[
+            styles.importantContainer,
+            { transform: [{ translateX: trans}]}
+          ]}
+        >
+          <Text style={styles.importantText}>★</Text>
+        </Animated.View>
+      </Pressable>
+    )
+  };
+
+
   const renderItem = ({item, index}) => (
     <GestureHandlerRootView>
-      <Swipeable renderRightActions={dragX => renderRightActions(dragX, item.id)}>
+      <Swipeable 
+        renderRightActions={dragX => renderRightActions(dragX, item.id)}
+        renderLeftActions={dragX => renderLeftActions(dragX, item.id)}
+        >
         <View style={{padding: 10, borderBottomWidth: 1, borderColor : '#ccc'}}>
           <TouchableOpacity
             onPress = {() => navigation.navigate('Detailed', {item: item})}>        
-                <Text style={{fontSize: 18}}>{item.title}</Text>
+                <Text style={{fontSize: 18, fontWeight: item.important ? 'bold': 'normal'}}>{item.title}</Text>
                 <Text style={{fontSize: 14, paddingLeft:5}}>{item.content}</Text>
           </TouchableOpacity>
         </View>
       </Swipeable>
     </GestureHandlerRootView>
   );
-
-
-
 
   return (
     <View style={styles.background}>
@@ -121,7 +164,7 @@ export default function HomeScreen({navigation}) {
           {/*FlatList 들어갈곳*/}
           <FlatList
             data = {list}
-            keyExtractor = {(item) => item.id}
+            keyExtractor = {(item) => item.id} //각 항목의 고유한 key를 부여함
             renderItem={renderItem}/>
       </View>
 
@@ -185,11 +228,26 @@ const styles = StyleSheet.create({
     color: '#555',
     paddingLeft: 25,
   },
-  delete: {
+  deleteContainer: {
+    justifyContent: 'center', // 수직 가운데 정렬
+    height: 48, // 리스트 항목과 동일한 높이 (필요에 따라 수정)
+    padding: 10,
+    backgroundColor: 'red', // 배경색을 변경하고 싶으면 설정
+  },
+  deleteText: {
     fontSize: 14,
-    color : 'red',
-    flexDirection: 'row',
-    alignItems: 'center',
+    color: 'white', // 텍스트 색상
+  },
+  importantContainer: {
+    justifyContent : 'center',
+    height: 48,
+    padding : 10,
+    backgroundColor: 'gold',
+  },
+  importantText: {
+    fontSize: 14,
+    color: 'black',
+    fontWeight: 'bold',
   }
 
 });
